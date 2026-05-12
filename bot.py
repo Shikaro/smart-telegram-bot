@@ -17,6 +17,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import BotCommand
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.enums import ParseMode
 
 import db
 import rag
@@ -33,8 +34,13 @@ dp.include_router(router)
 ADMIN_IDS: set[int] = set()
 MANAGER_LINK = "https://t.me/your_manager"
 
+SALON_NAME = "Beauty Demo"
+SALON_ADDRESS = "г. Москва, ул. Большая Дмитровка, д. 7/5, стр. 1"
+SALON_METRO = "Театральная (3 мин), Охотный Ряд (5 мин)"
+SALON_HOURS = "ежедневно 9:00 — 21:00"
+
 START_KB = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="Старт")]],
+    keyboard=[[KeyboardButton(text="☰ Меню")]],
     resize_keyboard=True,
 )
 
@@ -63,32 +69,48 @@ class AskStates(StatesGroup):
 
 def main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✂️  Записаться на услугу", callback_data="menu_book")],
         [
-            InlineKeyboardButton(text="Записаться", callback_data="menu_book"),
-            InlineKeyboardButton(text="Задать вопрос", callback_data="menu_ask"),
+            InlineKeyboardButton(text="📋 Мои записи", callback_data="menu_mybookings"),
+            InlineKeyboardButton(text="💬 Задать вопрос", callback_data="menu_ask"),
         ],
         [
-            InlineKeyboardButton(text="Мои записи", callback_data="menu_mybookings"),
-            InlineKeyboardButton(text="Менеджер", url=MANAGER_LINK),
+            InlineKeyboardButton(text="💰 Услуги и цены", callback_data="menu_services"),
+            InlineKeyboardButton(text="📍 Адрес", callback_data="menu_address"),
         ],
+        [InlineKeyboardButton(text="👩‍💼 Связаться с менеджером", url=MANAGER_LINK)],
     ])
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("Привет! Я ассистент компании.", reply_markup=START_KB)
+    name = message.from_user.first_name or ""
+    welcome = (
+        f"Привет, <b>{name}</b>! 👋\n\n"
+        f"Я — бот-ассистент салона <b>{SALON_NAME}</b>\n\n"
+        f"┌─────────────────────\n"
+        f"│ ✂️  Онлайн-запись 24/7\n"
+        f"│ 💬  Ответы на вопросы (AI)\n"
+        f"│ 🔔  Напоминания о визите\n"
+        f"└─────────────────────\n\n"
+        f"📍 {SALON_ADDRESS}\n"
+        f"🕐 {SALON_HOURS}"
+    )
+    await message.answer(welcome, parse_mode=ParseMode.HTML, reply_markup=START_KB)
     await message.answer(
-        "Выберите, что вам нужно:",
+        "⬇️ <b>Выберите действие:</b>",
+        parse_mode=ParseMode.HTML,
         reply_markup=main_menu(),
     )
 
 
-@router.message(F.text == "Старт")
+@router.message(F.text == "☰ Меню")
 async def btn_start(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
-        "Выберите, что вам нужно:",
+        "⬇️ <b>Выберите действие:</b>",
+        parse_mode=ParseMode.HTML,
         reply_markup=main_menu(),
     )
 
@@ -96,7 +118,7 @@ async def btn_start(message: Message, state: FSMContext):
 @router.message(Command("menu"))
 async def cmd_menu(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("Главное меню:", reply_markup=main_menu())
+    await message.answer("⬇️ <b>Выберите действие:</b>", parse_mode=ParseMode.HTML, reply_markup=main_menu())
 
 
 @router.message(Command("admin"))
@@ -117,8 +139,10 @@ async def cmd_admin(message: Message):
 async def menu_ask(callback: CallbackQuery, state: FSMContext):
     await state.set_state(AskStates.waiting_question)
     await callback.message.edit_text(
-        "Напишите ваш вопрос — я постараюсь ответить.\n\n"
-        "Для возврата в меню — /menu"
+        "💬 <b>Задайте вопрос</b>\n\n"
+        "Напишите — я найду ответ в базе знаний.\n"
+        "Для возврата — /menu",
+        parse_mode=ParseMode.HTML,
     )
     await callback.answer()
 
@@ -129,7 +153,7 @@ async def handle_question(message: Message, state: FSMContext):
         await message.answer(
             "База знаний пуста. Обратитесь к менеджеру.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")],
+                [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")],
             ]),
         )
         return
@@ -149,7 +173,7 @@ async def handle_question(message: Message, state: FSMContext):
             InlineKeyboardButton(text="Полезно", callback_data="fb_good"),
             InlineKeyboardButton(text="Не помогло", callback_data="fb_bad"),
         ],
-        [InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")],
+        [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")],
     ])
 
     await thinking.edit_text(answer, reply_markup=keyboard)
@@ -236,18 +260,23 @@ async def handle_document(message: Message):
 @router.callback_query(F.data == "menu_book")
 async def menu_book(callback: CallbackQuery, state: FSMContext):
     services = await db.get_services()
+    icons = {"Женская стрижка": "💇‍♀️", "Мужская стрижка": "💇‍♂️", "Окрашивание": "🎨",
+             "Маникюр с гель-лаком": "💅", "Укладка": "✨"}
     buttons = []
     for s in services:
+        icon = icons.get(s["name"], "•")
+        dur = s.get("duration_min", 60)
         buttons.append([
             InlineKeyboardButton(
-                text=f"{s['name']} — {s['price']} руб.",
+                text=f"{icon} {s['name']} · {s['price']}₽ · {dur} мин",
                 callback_data=f"srv_{s['id']}",
             )
         ])
-    buttons.append([InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")])
+    buttons.append([InlineKeyboardButton(text="← Назад", callback_data="back_menu")])
 
     await callback.message.edit_text(
-        "Выберите услугу:",
+        "✂️ <b>Выберите услугу:</b>",
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
     )
     await state.set_state(BookingStates.choosing_service)
@@ -269,10 +298,12 @@ async def choose_service(callback: CallbackQuery, state: FSMContext):
         buttons.append([
             InlineKeyboardButton(text=label, callback_data=f"date_{d.isoformat()}")
         ])
-    buttons.append([InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")])
+    buttons.append([InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")])
 
     await callback.message.edit_text(
-        f"Услуга: {service['name']}\n\nВыберите дату:",
+        f"✂️ <b>{service['name']}</b> · {service['price']}₽\n\n"
+        f"📅 <b>Выберите дату:</b>",
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
     )
     await state.set_state(BookingStates.choosing_date)
@@ -307,7 +338,7 @@ async def choose_date(callback: CallbackQuery, state: FSMContext):
         buttons.append(row)
 
     if not buttons:
-        buttons.append([InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")])
+        buttons.append([InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")])
         await callback.message.edit_text(
             "На эту дату нет свободных слотов.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
@@ -316,10 +347,13 @@ async def choose_date(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    buttons.append([InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")])
+    buttons.append([InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")])
     data = await state.get_data()
     await callback.message.edit_text(
-        f"Услуга: {data['service_name']}\nДата: {fmt_date(date_str)}\n\nВыберите время:",
+        f"✂️ <b>{data['service_name']}</b> · {data.get('service_price', '')}₽\n"
+        f"📅 {fmt_date(date_str)}\n\n"
+        f"🕐 <b>Выберите время:</b>",
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
     )
     await state.set_state(BookingStates.choosing_time)
@@ -334,17 +368,20 @@ async def choose_time(callback: CallbackQuery, state: FSMContext):
 
     buttons = [
         [
-            InlineKeyboardButton(text="Подтвердить", callback_data="confirm_yes"),
-            InlineKeyboardButton(text="Отмена", callback_data="back_menu"),
+            InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_yes"),
+            InlineKeyboardButton(text="✖️ Отмена", callback_data="back_menu"),
         ]
     ]
 
     await callback.message.edit_text(
-        f"Подтвердите запись:\n\n"
-        f"Услуга: {data['service_name']}\n"
-        f"Дата: {fmt_date(data['date'])}\n"
-        f"Время: {time_str}\n"
-        f"Цена: {data['service_price']} руб.",
+        f"📋 <b>Подтвердите запись</b>\n\n"
+        f"┌─────────────────────\n"
+        f"│ ✂️  {data['service_name']}\n"
+        f"│ 📅  {fmt_date(data['date'])}\n"
+        f"│ 🕐  {time_str}\n"
+        f"│ 💰  {data['service_price']} руб.\n"
+        f"└─────────────────────",
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
     )
     await state.set_state(BookingStates.confirming)
@@ -360,7 +397,7 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(
             "Это время уже занято. Попробуйте другое.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")]
+                [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")]
             ]),
         )
         await state.clear()
@@ -377,14 +414,19 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext):
     )
 
     await callback.message.edit_text(
-        f"Вы записаны!\n\n"
-        f"Услуга: {data['service_name']}\n"
-        f"Дата: {fmt_date(data['date'])}\n"
-        f"Время: {data['time']}\n"
-        f"Цена: {data['service_price']} руб.\n\n"
-        f"Напоминание придёт за 2 часа.",
+        f"✅ <b>Вы записаны!</b>\n\n"
+        f"┌─────────────────────\n"
+        f"│ ✂️  {data['service_name']}\n"
+        f"│ 📅  {fmt_date(data['date'])}\n"
+        f"│ 🕐  {data['time']}\n"
+        f"│ 💰  {data['service_price']} руб.\n"
+        f"└─────────────────────\n\n"
+        f"🔔 Напомним за 1 час до визита\n"
+        f"📍 {SALON_ADDRESS}",
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")]
+            [InlineKeyboardButton(text="📋 Мои записи", callback_data="menu_mybookings")],
+            [InlineKeyboardButton(text="☰ Главное меню", callback_data="back_menu")],
         ]),
     )
 
@@ -411,29 +453,37 @@ async def menu_mybookings(callback: CallbackQuery):
     bookings = await db.get_user_bookings(callback.from_user.id)
     if not bookings:
         await callback.message.edit_text(
-            "У вас нет активных записей.",
+            "📋 <b>Мои записи</b>\n\n"
+            "У вас пока нет активных записей.\n"
+            "Хотите записаться?",
+            parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Записаться", callback_data="menu_book")],
-                [InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")],
+                [InlineKeyboardButton(text="✂️ Записаться", callback_data="menu_book")],
+                [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")],
             ]),
         )
         await callback.answer()
         return
 
-    text = "Ваши записи:\n\n"
+    text = "📋 <b>Мои записи</b>\n\n"
     buttons = []
     for i, b in enumerate(bookings, 1):
-        text += f"#{i} | {b['service_name']}\n   {fmt_date(b['date'])} в {b['time']} — {b['price']} руб.\n\n"
+        text += (
+            f"<b>#{i}</b> {b['service_name']}\n"
+            f"    📅 {fmt_date(b['date'])} в {b['time']}\n"
+            f"    💰 {b['price']} руб.\n\n"
+        )
         buttons.append([
             InlineKeyboardButton(
                 text=f"Отменить #{i}",
                 callback_data=f"cancelb_{b['id']}",
             )
         ])
-    buttons.append([InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")])
+    buttons.append([InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")])
 
     await callback.message.edit_text(
         text,
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
     )
     await callback.answer()
@@ -443,11 +493,12 @@ async def menu_mybookings(callback: CallbackQuery):
 async def cancel_booking_cb(callback: CallbackQuery):
     booking_id = callback.data.split("_")[1]
     await callback.message.edit_text(
-        "Вы уверены, что хотите отменить запись?",
+        "⚠️ <b>Отменить запись?</b>\n\nЭто действие нельзя отменить.",
+        parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="Да, отменить", callback_data=f"confirmcancel_{booking_id}"),
-                InlineKeyboardButton(text="Нет, оставить", callback_data="menu_mybookings"),
+                InlineKeyboardButton(text="❌ Да, отменить", callback_data=f"confirmcancel_{booking_id}"),
+                InlineKeyboardButton(text="← Нет", callback_data="menu_mybookings"),
             ]
         ]),
     )
@@ -462,11 +513,71 @@ async def confirm_cancel_cb(callback: CallbackQuery):
     await callback.message.edit_text(
         text,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Назад в меню", callback_data="back_menu")]
+            [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")]
         ]),
     )
     await callback.answer()
 
+
+
+# ── Услуги и цены ────────────────────────────────────────
+
+@router.callback_query(F.data == "menu_services")
+async def menu_services(callback: CallbackQuery):
+    services = await db.get_services()
+    icons = {"Женская стрижка": "💇‍♀️", "Мужская стрижка": "💇‍♂️", "Окрашивание": "🎨",
+             "Маникюр с гель-лаком": "💅", "Укладка": "✨"}
+    text = f"💰 <b>Услуги и цены — {SALON_NAME}</b>\n\n"
+    for s in services:
+        icon = icons.get(s["name"], "•")
+        dur = s.get("duration_min", 60)
+        text += f"{icon} <b>{s['name']}</b>\n    {s['price']} руб. · {dur} мин\n\n"
+    text += (
+        "┌─────────────────────\n"
+        "│ 🎁 5-й визит — скидка 10%\n"
+        "│ 🎁 2+ услуги — скидка 5%\n"
+        "└─────────────────────"
+    )
+    await callback.message.edit_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✂️ Записаться", callback_data="menu_book")],
+            [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")],
+        ]),
+    )
+    await callback.answer()
+
+
+# ── Адрес и как добраться ────────────────────────────────
+
+@router.callback_query(F.data == "menu_address")
+async def menu_address(callback: CallbackQuery):
+    text = (
+        f"📍 <b>Как нас найти</b>\n\n"
+        f"<b>{SALON_NAME}</b>\n"
+        f"{SALON_ADDRESS}\n"
+        f"2 этаж, вход со двора\n\n"
+        f"🚇 <b>Метро:</b>\n"
+        f"    • Театральная — 3 мин\n"
+        f"    • Охотный Ряд — 5 мин\n"
+        f"    • Кузнецкий Мост — 7 мин\n\n"
+        f"🚗 <b>На машине:</b>\n"
+        f"    5 бесплатных мест во дворе\n"
+        f"    (заезд с Козицкого пер.)\n\n"
+        f"🕐 <b>Режим работы:</b>\n"
+        f"    {SALON_HOURS}"
+    )
+    await callback.message.edit_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🗺 Открыть на карте", url="https://yandex.ru/maps/-/CHe5mF~g")],
+            [InlineKeyboardButton(text="✂️ Записаться", callback_data="menu_book")],
+            [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")],
+        ]),
+    )
+    await callback.answer()
 
 # ── Назад в меню ─────────────────────────────────────────
 
@@ -474,7 +585,8 @@ async def confirm_cancel_cb(callback: CallbackQuery):
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_text(
-        "Выберите, что вам нужно:",
+        "⬇️ <b>Выберите действие:</b>",
+        parse_mode=ParseMode.HTML,
         reply_markup=main_menu(),
     )
     await callback.answer()
@@ -531,7 +643,8 @@ async def fallback_text(message: Message, state: FSMContext):
     if current_state is not None:
         return
     await message.answer(
-        "Выберите, что вам нужно:",
+        "⬇️ <b>Выберите действие:</b>",
+        parse_mode=ParseMode.HTML,
         reply_markup=main_menu(),
     )
 
