@@ -89,11 +89,11 @@ async def cmd_start(message: Message, state: FSMContext):
     welcome = (
         f"Привет, <b>{name}</b>! 👋\n\n"
         f"Я — бот-ассистент салона <b>{SALON_NAME}</b>\n\n"
-        f"┌─────────────────────\n"
-        f"│ ✂️  Онлайн-запись 24/7\n"
-        f"│ 💬  Ответы на вопросы (AI)\n"
-        f"│ 🔔  Напоминания о визите\n"
-        f"└─────────────────────\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"  ▸ ✂️  Онлайн-запись 24/7\n"
+        f"  ▸ 💬  Ответы на вопросы (AI)\n"
+        f"  ▸ 🔔  Напоминания о визите\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📍 {SALON_ADDRESS}\n"
         f"🕐 {SALON_HOURS}"
     )
@@ -265,7 +265,7 @@ async def menu_book(callback: CallbackQuery, state: FSMContext):
     buttons = []
     for s in services:
         icon = icons.get(s["name"], "•")
-        dur = s.get("duration_min", 60)
+        dur = s["duration_min"] if "duration_min" in s.keys() else 60
         buttons.append([
             InlineKeyboardButton(
                 text=f"{icon} {s['name']} · {s['price']}₽ · {dur} мин",
@@ -350,7 +350,7 @@ async def choose_date(callback: CallbackQuery, state: FSMContext):
     buttons.append([InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")])
     data = await state.get_data()
     await callback.message.edit_text(
-        f"✂️ <b>{data['service_name']}</b> · {data.get('service_price', '')}₽\n"
+        f"✂️ <b>{data['service_name']}</b> · {data.get('service_price', 0)}₽\n"
         f"📅 {fmt_date(date_str)}\n\n"
         f"🕐 <b>Выберите время:</b>",
         parse_mode=ParseMode.HTML,
@@ -375,12 +375,12 @@ async def choose_time(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(
         f"📋 <b>Подтвердите запись</b>\n\n"
-        f"┌─────────────────────\n"
-        f"│ ✂️  {data['service_name']}\n"
-        f"│ 📅  {fmt_date(data['date'])}\n"
-        f"│ 🕐  {time_str}\n"
-        f"│ 💰  {data['service_price']} руб.\n"
-        f"└─────────────────────",
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"  ▸ ✂️  {data['service_name']}\n"
+        f"  ▸ 📅  {fmt_date(data['date'])}\n"
+        f"  ▸ 🕐  {time_str}\n"
+        f"  ▸ 💰  {data['service_price']} руб.\n"
+        f"━━━━━━━━━━━━━━━━━━━━━",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
     )
@@ -415,12 +415,12 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(
         f"✅ <b>Вы записаны!</b>\n\n"
-        f"┌─────────────────────\n"
-        f"│ ✂️  {data['service_name']}\n"
-        f"│ 📅  {fmt_date(data['date'])}\n"
-        f"│ 🕐  {data['time']}\n"
-        f"│ 💰  {data['service_price']} руб.\n"
-        f"└─────────────────────\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"  ▸ ✂️  {data['service_name']}\n"
+        f"  ▸ 📅  {fmt_date(data['date'])}\n"
+        f"  ▸ 🕐  {data['time']}\n"
+        f"  ▸ 💰  {data['service_price']} руб.\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🔔 Напомним за 1 час до визита\n"
         f"📍 {SALON_ADDRESS}",
         parse_mode=ParseMode.HTML,
@@ -530,13 +530,13 @@ async def menu_services(callback: CallbackQuery):
     text = f"💰 <b>Услуги и цены — {SALON_NAME}</b>\n\n"
     for s in services:
         icon = icons.get(s["name"], "•")
-        dur = s.get("duration_min", 60)
+        dur = s["duration_min"] if "duration_min" in s.keys() else 60
         text += f"{icon} <b>{s['name']}</b>\n    {s['price']} руб. · {dur} мин\n\n"
     text += (
-        "┌─────────────────────\n"
-        "│ 🎁 5-й визит — скидка 10%\n"
-        "│ 🎁 2+ услуги — скидка 5%\n"
-        "└─────────────────────"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "  ▸ 🎁 5-й визит — скидка 10%\n"
+        "  ▸ 🎁 2+ услуги — скидка 5%\n"
+        "━━━━━━━━━━━━━━━━━━━━━"
     )
     await callback.message.edit_text(
         text,
