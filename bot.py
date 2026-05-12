@@ -69,7 +69,7 @@ class AskStates(StatesGroup):
 
 def main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✄  Записаться на услугу", callback_data="menu_book")],
+        [InlineKeyboardButton(text="✂️  Записаться на услугу", callback_data="menu_book")],
         [
             InlineKeyboardButton(text="📋 Мои записи", callback_data="menu_mybookings"),
             InlineKeyboardButton(text="💬 Задать вопрос", callback_data="menu_ask"),
@@ -90,7 +90,7 @@ async def cmd_start(message: Message, state: FSMContext):
         f"Привет, <b>{name}</b>! 👋\n\n"
         f"Я — бот-ассистент салона <b>{SALON_NAME}</b>\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"  ▸ ✄  Онлайн-запись 24/7\n"
+        f"  ▸  ✂️ Онлайн-запись 24/7\n"
         f"  ▸ 💬  Ответы на вопросы (AI)\n"
         f"  ▸ 🔔  Напоминания о визите\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -275,7 +275,7 @@ async def menu_book(callback: CallbackQuery, state: FSMContext):
     buttons.append([InlineKeyboardButton(text="← Назад", callback_data="back_menu")])
 
     await callback.message.edit_text(
-        "✄ <b>Выберите услугу:</b>",
+        "✂️ <b>Выберите услугу:</b>",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
     )
@@ -301,7 +301,7 @@ async def choose_service(callback: CallbackQuery, state: FSMContext):
     buttons.append([InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")])
 
     await callback.message.edit_text(
-        f"✄ <b>{service['name']}</b> · {service['price']}₽\n\n"
+        f"✂️ <b>{service['name']}</b> · {service['price']}₽\n\n"
         f"📅 <b>Выберите дату:</b>",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
@@ -350,7 +350,7 @@ async def choose_date(callback: CallbackQuery, state: FSMContext):
     buttons.append([InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")])
     data = await state.get_data()
     await callback.message.edit_text(
-        f"✄ <b>{data['service_name']}</b> · {data.get('service_price', 0)}₽\n"
+        f"✂️ <b>{data['service_name']}</b> · {data.get('service_price', 0)}₽\n"
         f"📅 {fmt_date(date_str)}\n\n"
         f"🕐 <b>Выберите время:</b>",
         parse_mode=ParseMode.HTML,
@@ -376,7 +376,7 @@ async def choose_time(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"📋 <b>Подтвердите запись</b>\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"  ▸ ✄  {data['service_name']}\n"
+        f"  ▸  ✂️ {data['service_name']}\n"
         f"  ▸ 📅  {fmt_date(data['date'])}\n"
         f"  ▸ 🕐  {time_str}\n"
         f"  ▸ 💰  {data['service_price']} руб.\n"
@@ -416,7 +416,7 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"✅ <b>Вы записаны!</b>\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"  ▸ ✄  {data['service_name']}\n"
+        f"  ▸  ✂️ {data['service_name']}\n"
         f"  ▸ 📅  {fmt_date(data['date'])}\n"
         f"  ▸ 🕐  {data['time']}\n"
         f"  ▸ 💰  {data['service_price']} руб.\n"
@@ -458,7 +458,7 @@ async def menu_mybookings(callback: CallbackQuery):
             "Хотите записаться?",
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="✄ Записаться", callback_data="menu_book")],
+                [InlineKeyboardButton(text="✂️ Записаться", callback_data="menu_book")],
                 [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")],
             ]),
         )
@@ -542,7 +542,7 @@ async def menu_services(callback: CallbackQuery):
         text,
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✄ Записаться", callback_data="menu_book")],
+            [InlineKeyboardButton(text="✂️ Записаться", callback_data="menu_book")],
             [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")],
         ]),
     )
@@ -573,7 +573,7 @@ async def menu_address(callback: CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🗺 Открыть на карте", url="https://yandex.ru/maps/-/CHe5mF~g")],
-            [InlineKeyboardButton(text="✄ Записаться", callback_data="menu_book")],
+            [InlineKeyboardButton(text="✂️ Записаться", callback_data="menu_book")],
             [InlineKeyboardButton(text="☰ Меню", callback_data="back_menu")],
         ]),
     )
